@@ -1,0 +1,4 @@
+criterion: ce-loss
+epochs: 10
+layername_in: layer1[0].alpha1
+layername_out: layer4[0].alpha1

@@ -46,3 +46,22 @@ class UNet(nn.Module):
         self.up3 = torch.utils.checkpoint(self.up3)
         self.up4 = torch.utils.checkpoint(self.up4)
         self.outc = torch.utils.checkpoint(self.outc)
+
+
+
+class UNetLayer2Layer(UNet):
+    def __init__(self, n_channels, n_classes, n_features_out, out_spatial_H, out_spatial_W, bilinear=False):
+        super(UNetLayer2Layer, self).__init__(n_channels, n_classes, bilinear)
+        self.n_channels = n_channels
+        self.n_classes = n_classes
+        self.n_features_out = n_features_out
+        self.bilinear = bilinear
+        self.out_spatial_H = out_spatial_H
+        self.out_spatial_W = out_spatial_W
+        self.outc = (OutConv(64, n_classes * n_features_out))
+
+    def forward(self, x):
+        logits = super().forward(x)
+        B, _, H, W = logits.size()
+        reshaped_logtis = logits.view(B, self.n_classes, self.n_features_out, H, W)
+        return reshaped_logtis[..., :self.out_spatial_H, :self.out_spatial_W]

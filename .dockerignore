@@ -1,11 +1,10 @@
 *.pyc
 data/
 __pycache__/
-checkpoints/
+checkpoints/UNet
 *.pth
 *.jpg
 venv/
 .idea/
 wandb/
 dataset_cache
-docker_checkpoints

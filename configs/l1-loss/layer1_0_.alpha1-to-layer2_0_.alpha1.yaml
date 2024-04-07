@@ -1,0 +1,4 @@
+criterion: l1-loss
+epochs: 10
+layername_in: layer1[0].alpha1
+layername_out: layer2[0].alpha1
