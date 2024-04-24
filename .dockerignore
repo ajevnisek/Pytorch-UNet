@@ -8,3 +8,4 @@ venv/
 .idea/
 wandb/
 dataset_cache
+out
