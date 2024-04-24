@@ -20,7 +20,7 @@ from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from datasets import get_dataset, DATASETS, get_num_classes
 from architectures_unstructured import ARCHITECTURES, get_architecture
-from classifier_utils import split_layername_to_triplet, LAYERNAMES, LAYERNAMES_TO_CHANNEL_DIM, get_cifar100_resnet18_args, model_inference as classifier_inference
+from classifier_utils import split_layername_to_triplet, LAYERNAMES, LAYERNAMES_TO_CHANNEL_DIM, LAYERNAMES_TO_SPATIAL_DIM, get_cifar100_resnet18_args, model_inference as classifier_inference
 from train_layer_to_layer import get_activation_input, get_activation_drelu
 from evaluate_layer_to_layer import evaluate_acc_metrics_layer_to_layer
 FEATURES_CACHE_DICT = {}
@@ -64,8 +64,11 @@ if __name__ == '__main__':
 
     # load unet model + checkpoint:
     n_channels = LAYERNAMES_TO_CHANNEL_DIM[args.layername_in]
-    n_out_channels = LAYERNAMES_TO_CHANNEL_DIM[args.layername_out]
-    model = UNetLayer2Layer(n_channels=n_channels, n_classes=args.classes, n_features_out=n_out_channels, bilinear=args.bilinear)
+    n_channels_out = LAYERNAMES_TO_CHANNEL_DIM[args.layername_out]
+    out_spatial_H = out_spatial_W = LAYERNAMES_TO_SPATIAL_DIM[args.layername_out]
+    model = UNetLayer2Layer(n_channels=n_channels, n_classes=args.classes, n_features_out=n_channels_out,
+                            out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W,
+                            bilinear=args.bilinear)
     model = model.to(device)
     state_dict = torch.load(args.load, map_location=device)
     model.load_state_dict(state_dict)
