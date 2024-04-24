@@ -73,6 +73,35 @@ class LearnableAlpha(nn.Module):
         return out
 
 
+class LearnableAlphaInputCacher(nn.Module):
+    def __init__(self, out_channel, feature_size):
+        super(LearnableAlphaInputCacher, self).__init__()
+        self.alphas = nn.Parameter(torch.ones(1, out_channel, feature_size, feature_size), requires_grad=True)
+        self.cache = None
+
+    def forward(self, x):
+        self.cache = x
+        out = F.relu(x) * self.alphas.expand_as(x) + (1-self.alphas.expand_as(x)) * x
+        return out
+
+    def get_cache(self):
+        return self.cache
+
+class LearnableAlphaDReLUPrediction(nn.Module):
+    def __init__(self, out_channel, feature_size, unet, prev_module=None):
+        super(LearnableAlphaDReLUPrediction, self).__init__()
+        self.alphas = nn.Parameter(torch.ones(1, out_channel, feature_size, feature_size), requires_grad=True)
+        self.unet = unet
+        self.prev_module = prev_module
+
+    def forward(self, x):
+        with torch.no_grad():
+            drelu_prediction = self.unet(self.prev_module.get_cache()).squeeze(1)
+        out = drelu_prediction * x
+        # out = F.relu(x) * self.alphas.expand_as(x) + (1-self.alphas.expand_as(x)) * x
+        return out
+
+
 class LearnableAlphaWithEpsilon(nn.Module):
     def __init__(self, out_channel, feature_size, epsilon, num_of_neighbors: int = 4):
         super(LearnableAlphaWithEpsilon, self).__init__()
