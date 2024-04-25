@@ -10,3 +10,4 @@ wandb/
 dataset_cache
 docker_checkpoints
 out
+outs

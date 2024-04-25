@@ -9,3 +9,4 @@ venv/
 wandb/
 dataset_cache
 out
+outs
