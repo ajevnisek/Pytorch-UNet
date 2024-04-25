@@ -9,7 +9,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from torch.optim import SGD, Optimizer
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
-from unet import UNetLayer2Layer
+from unet import UNetLayer2Layer, LightweightUNetLayer2Layer, SuperLightweightUNetLayer2Layer, SuperDuperLightweightUNetLayer2Layer
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from datasets import get_dataset, DATASETS, get_num_classes
@@ -51,6 +51,11 @@ def get_args():
     parser.add_argument('--layername_out', '-lno', type=str, default='layer1[0].alpha2',
                         choices=LAYERNAMES + ['images'],
                         help='layername output')
+    parser.add_argument('--unet-type', type=str, default='UNetLayer2Layer',
+                        choices=['UNetLayer2Layer', 'LightweightUNetLayer2Layer',
+                                 'SuperLightweightUNetLayer2Layer',
+                                 'SuperDuperLightweightUNetLayer2Layer'],
+                        help='unet type')
 
     return parser.parse_args()
 
@@ -106,18 +111,27 @@ if __name__ == '__main__':
     from archs_unstructured.cifar_resnet import LearnableAlphaInputCacher, LearnableAlphaDReLUPrediction
 
     base_classifier.layer1[0].alpha1 = LearnableAlphaInputCacher(out_channel, feature_size).to(device)
-    for layername_out in [l for l in LAYERNAMES[1:]
-                          if l not in ['layer3[0].alpha1',
-                                       'layer3[0].alpha2',
-                                       'layer3[1].alpha2',
-                                       'layer4[1].alpha1']][:args.count_replacements]:
+    for layername_out in [l for l in LAYERNAMES[1:]][:args.count_replacements]:
         # load unet model + checkpoint:
         n_channels = LAYERNAMES_TO_CHANNEL_DIM[args.layername_in]
         n_channels_out = LAYERNAMES_TO_CHANNEL_DIM[layername_out]
         out_spatial_H = out_spatial_W = LAYERNAMES_TO_SPATIAL_DIM[layername_out]
-        model = UNetLayer2Layer(n_channels=n_channels, n_classes=args.classes, n_features_out=n_channels_out,
-                                out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W,
-                                bilinear=args.bilinear)
+        if args.unet_type == 'UNetLayer2Layer':
+            model = UNetLayer2Layer(n_channels=n_channels, n_classes=args.classes, n_features_out=n_channels_out,
+                                    out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W,
+                                    bilinear=args.bilinear)
+        elif args.unet_type == 'LightweightUNetLayer2Layer':
+            model = LightweightUNetLayer2Layer(n_channels=n_channels, n_features_out=n_channels_out,
+                                               out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W, )
+        elif args.unet_type == 'SuperLightweightUNetLayer2Layer':
+            model = SuperLightweightUNetLayer2Layer(n_channels=n_channels, n_features_out=n_channels_out,
+                                                    out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W, )
+        elif args.unet_type == 'SuperDuperLightweightUNetLayer2Layer':
+            model = SuperDuperLightweightUNetLayer2Layer(n_channels=n_channels, n_features_out=n_channels_out,
+                                                         out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W, )
+        else:
+            raise ValueError
+
         model = model.to(device)
         path = os.path.join(args.unets_root,
             f'layer1_0_.alpha1-to-{layername_out.replace("[", "_").replace("]", "_")}/layer2layer-layer1[0].alpha1-to-{layername_out}-loss-ce-loss-epochs-10-batchsize-128-lr-1e-05/checkpoint_epoch10.pth')
