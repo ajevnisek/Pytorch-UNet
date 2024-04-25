@@ -1,0 +1,1 @@
+python train_layer_to_layer.py --classes 1 --batch-size 128 --epochs 1 --config-file configs/ce-loss/layer2[0].alpha1-to-layer4[1].alpha2.yaml --dir_checkpoint /local_code/docker_checkpoints/

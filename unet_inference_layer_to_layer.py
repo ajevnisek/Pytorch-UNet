@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import random
@@ -15,7 +16,7 @@ from tqdm import tqdm
 
 import wandb
 from evaluate_layer_to_layer import evaluate
-from unet import UNetLayer2Layer
+from unet import UNetLayer2Layer, LightweightUNetLayer2Layer, SuperLightweightUNetLayer2Layer, SuperDuperLightweightUNetLayer2Layer
 from utils.data_loading import BasicDataset, CarvanaDataset
 from utils.dice_score import dice_loss
 from datasets import get_dataset, DATASETS, get_num_classes
@@ -39,6 +40,11 @@ def get_args():
     parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
     parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=2, help='Number of classes')
+    parser.add_argument('--unet-type', type=str, default='UNetLayer2Layer',
+                        choices=['UNetLayer2Layer', 'LightweightUNetLayer2Layer',
+                                 'SuperLightweightUNetLayer2Layer',
+                                 'SuperDuperLightweightUNetLayer2Layer'],
+                        help='unet type')
     # classifier related data:
     parser.add_argument('--classifier_name', type=str, default='resnet18_in', help='classifier name')
     parser.add_argument('--dataset_name', type=str, default='cifar100', help='dataset name')
@@ -51,6 +57,8 @@ def get_args():
     parser.add_argument('--layername_out', '-lno', type=str, default='layer1[0].alpha2',
                         choices=LAYERNAMES + ['images'],
                         help='layername output')
+    # artifacts
+    parser.add_argument('--output-file', type=str, default='out.json')
 
     return parser.parse_args()
 
@@ -66,9 +74,21 @@ if __name__ == '__main__':
     n_channels = LAYERNAMES_TO_CHANNEL_DIM[args.layername_in]
     n_channels_out = LAYERNAMES_TO_CHANNEL_DIM[args.layername_out]
     out_spatial_H = out_spatial_W = LAYERNAMES_TO_SPATIAL_DIM[args.layername_out]
-    model = UNetLayer2Layer(n_channels=n_channels, n_classes=args.classes, n_features_out=n_channels_out,
-                            out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W,
-                            bilinear=args.bilinear)
+    if args.unet_type == 'UNetLayer2Layer':
+        model = UNetLayer2Layer(n_channels=n_channels, n_classes=args.classes, n_features_out=n_channels_out,
+                                out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W,
+                                bilinear=args.bilinear)
+    elif args.unet_type == 'LightweightUNetLayer2Layer':
+        model = LightweightUNetLayer2Layer(n_channels=n_channels, n_features_out=n_channels_out,
+                                           out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W, )
+    elif args.unet_type == 'SuperLightweightUNetLayer2Layer':
+        model = SuperLightweightUNetLayer2Layer(n_channels=n_channels, n_features_out=n_channels_out,
+                                                out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W, )
+    elif args.unet_type == 'SuperDuperLightweightUNetLayer2Layer':
+        model = SuperDuperLightweightUNetLayer2Layer(n_channels=n_channels, n_features_out=n_channels_out,
+                                                     out_spatial_H=out_spatial_H, out_spatial_W=out_spatial_W, )
+    else:
+        raise KeyError
     model = model.to(device)
     state_dict = torch.load(args.load, map_location=device)
     model.load_state_dict(state_dict)
@@ -117,3 +137,8 @@ if __name__ == '__main__':
 
     metrics = evaluate_acc_metrics_layer_to_layer(model, base_classifier, val_loader, device, args.amp, FEATURES_CACHE_DICT)
     print(metrics)
+    metrics['layername_in'] = args.layername_in
+    metrics['layername_out'] = args.layername_out
+    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
+    with open(args.output_file, 'w') as f:
+        json.dump(metrics, f, indent=4)
